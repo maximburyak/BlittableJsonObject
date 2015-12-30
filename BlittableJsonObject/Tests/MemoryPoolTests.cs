@@ -13,7 +13,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void SerialAllocationAndRelease()
         {
-            using (var pool = new UnmanagedByteArrayPool())
+            using (var pool = new UnmanagedBuffersPool())
             {
                 var allocatedMemory = new List<Tuple<int, ulong>>();
                 for (var i = 0; i < 1000; i++)
@@ -25,7 +25,7 @@ namespace NewBlittable.Tests
                 }
                 foreach (var tuple in allocatedMemory)
                 {
-                    pool.ReturnMemory((byte*)tuple.Item2, tuple.Item1);
+                    pool.ReturnMemory((byte*)tuple.Item2);
                 }
             }
         }
@@ -33,7 +33,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void ParallelAllocationAndReleaseSeperately()
         {
-            using (var pool = new UnmanagedByteArrayPool())
+            using (var pool = new UnmanagedBuffersPool())
             {
                 var allocatedMemory = new Sparrow.Collections.ConcurrentSet<Tuple<int, ulong>>();
                 Parallel.For(0, 1000, x =>
@@ -49,7 +49,7 @@ namespace NewBlittable.Tests
 
                 Parallel.ForEach(allocatedMemory, tuple =>
                 {
-                    pool.ReturnMemory((byte*) tuple.Item2, tuple.Item1);
+                    pool.ReturnMemory((byte*) tuple.Item2);
                 });
             }
         }
@@ -57,7 +57,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void ParallelSerialAllocationAndRelease()
         {
-            using (var pool = new UnmanagedByteArrayPool())
+            using (var pool = new UnmanagedBuffersPool())
             {
                 var allocatedMemory = new BlockingCollection<Tuple<int, ulong>>();
                 Task.Run(() =>
@@ -76,7 +76,7 @@ namespace NewBlittable.Tests
                 {
                     Tuple<int, ulong> tuple;
                     if (allocatedMemory.TryTake(out tuple, 100))
-                        pool.ReturnMemory((byte*) tuple.Item2, tuple.Item1);
+                        pool.ReturnMemory((byte*) tuple.Item2);
                 }
             }
         }

@@ -11,7 +11,7 @@ namespace NewBlittable
 {
     public unsafe class BlittableContext:IDisposable
     {
-        private readonly UnmanagedByteArrayPool _pool;
+        private readonly UnmanagedBuffersPool _pool;
         private byte* _bufferPtr;
         private int _bufferSize;
         private readonly Sparrow.Collections.ConcurrentSet<WeakReference<UnmanagedStream>> _streams = new Sparrow.Collections.ConcurrentSet<WeakReference<UnmanagedStream>>();
@@ -20,7 +20,7 @@ namespace NewBlittable
         public SparrowStringComparer Comparer = new SparrowStringComparer(); 
         private readonly ConcurrentDictionary<string, Tuple<int, byte[]>> _fieldNamesToByteArrays = new ConcurrentDictionary<string, Tuple<int, byte[]>>();
 
-        public BlittableContext(UnmanagedByteArrayPool pool, int initialSize)
+        public BlittableContext(UnmanagedBuffersPool pool, int initialSize)
         {
             _pool = pool;
             _bufferPtr = _pool.GetMemory(initialSize, string.Empty, out _bufferSize);
@@ -38,7 +38,7 @@ namespace NewBlittable
         {
             if (requestedSize > _bufferSize)
             {
-                _pool.ReturnMemory(_bufferPtr, _bufferSize);
+                _pool.ReturnMemory(_bufferPtr);
                 _bufferPtr = _pool.GetMemory(_bufferSize + 1, string.Empty, out _bufferSize);
             }
             actualSize = _bufferSize;
@@ -74,7 +74,7 @@ namespace NewBlittable
             }
             finally
             {
-                _pool.ReturnMemory(memory, byteCount);
+                _pool.ReturnMemory(memory);
             }
         }
 
@@ -109,7 +109,7 @@ namespace NewBlittable
 
         public void Dispose()
         {
-            _pool.ReturnMemory(_bufferPtr, _bufferSize);
+            _pool.ReturnMemory(_bufferPtr);
             foreach (var weakReference in _streams)
             {
                 UnmanagedStream curStream;

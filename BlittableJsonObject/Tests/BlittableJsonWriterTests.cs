@@ -85,7 +85,7 @@ namespace NewBlittable.Tests
         {
             byte* ptr;
             int size = 0;
-            var unmanagedPool = new UnmanagedByteArrayPool();
+            var unmanagedPool = new UnmanagedBuffersPool();
          
             var str = GetEmployeeString();
             using (var blittableContext = new BlittableContext(unmanagedPool, 16))
@@ -117,7 +117,7 @@ namespace NewBlittable.Tests
         {
             byte* ptr;
             int size = 0;
-            var unmanagedPool = new UnmanagedByteArrayPool();
+            var unmanagedPool = new UnmanagedBuffersPool();
 
             var str = GetEmployeeString2();
             using (var blittableContext = new BlittableContext(unmanagedPool, 16))
@@ -137,7 +137,7 @@ namespace NewBlittable.Tests
         {
             byte* ptr;
             int size = 0;
-            var unmanagedPool = new UnmanagedByteArrayPool();
+            var unmanagedPool = new UnmanagedBuffersPool();
 
             var str = GetEmployeeString2();
             using (var blittableContext = new BlittableContext(unmanagedPool, 16))

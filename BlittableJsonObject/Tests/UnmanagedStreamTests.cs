@@ -12,7 +12,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void BulkWriteAscendingSizeTest()
         {
-            using (var unmanagedByteArrayPool = new UnmanagedByteArrayPool())
+            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
                 var newStream = new UnmanagedStream(unmanagedByteArrayPool, "trolo", 64, 8);
@@ -44,7 +44,7 @@ namespace NewBlittable.Tests
                         curIndex++;
                     }
 
-                    unmanagedByteArrayPool.ReturnMemory((byte*) tuple.Item1, tuple.Item2);
+                    unmanagedByteArrayPool.ReturnMemory((byte*) tuple.Item1);
                 }
             }
         }
@@ -52,7 +52,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void BulkWriteDescendingSizeTest()
         {
-            using (var unmanagedByteArrayPool = new UnmanagedByteArrayPool())
+            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
                 var newStream = new UnmanagedStream(unmanagedByteArrayPool, "trolo", 64, 8);
@@ -84,7 +84,7 @@ namespace NewBlittable.Tests
                         curIndex++;
                     }
 
-                    unmanagedByteArrayPool.ReturnMemory((byte*)tuple.Item1, tuple.Item2);
+                    unmanagedByteArrayPool.ReturnMemory((byte*)tuple.Item1);
                 }
             }
         }
@@ -92,7 +92,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void SingleByteWritesTest()
         {
-            using (var unmanagedByteArrayPool = new UnmanagedByteArrayPool())
+            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
                 var newStream = new UnmanagedStream(unmanagedByteArrayPool, "trolo", 64, 8);
@@ -140,7 +140,7 @@ namespace NewBlittable.Tests
                         }
                     }
 
-                    unmanagedByteArrayPool.ReturnMemory((byte*) tuple.Item1, tuple.Item2);
+                    unmanagedByteArrayPool.ReturnMemory((byte*) tuple.Item1);
                 }
             }
         }

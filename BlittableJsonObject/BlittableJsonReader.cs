@@ -242,6 +242,7 @@ namespace NewBlittable
         private long _currentOffsetSize;
         private long _currentPropertyIdSize;
         private byte* _objStart;
+        //TODO: make this thread safe
         private Dictionary<string, object> cache;
 
 

@@ -50,7 +50,7 @@ namespace ConsoleApplication4
   
             byte* ptr;
             int size = 0;
-            var unmanagedPool = new UnmanagedByteArrayPool();
+            var unmanagedPool = new UnmanagedBuffersPool();
 
           
             using (var blittableContext = new BlittableContext(unmanagedPool, 16))

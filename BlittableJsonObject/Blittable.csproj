@@ -91,7 +91,7 @@
     <Compile Include="Tests\BlittableJsonWriterTests.cs" />
     <Compile Include="Tests\MemoryPoolTests.cs" />
     <Compile Include="Tests\UnmanagedStreamTests.cs" />
-    <Compile Include="UnmanagedByteArrayPool.cs" />
+    <Compile Include="UnmanagedBuffersPool.cs" />
     <Compile Include="UnmanagedStream.cs" />
   </ItemGroup>
   <ItemGroup>
