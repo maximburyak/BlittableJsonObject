@@ -1,0 +1,16 @@
+SRCSRV: ini ------------------------------------------------
+VERSION=2
+SRCSRV: variables ------------------------------------------
+SRCSRVVERCTRL=https
+SRCSRVTRG=https://raw.github.com/ayende/ravendb/6496e0d35e49ab864414bac4b5d3b20bdf0cc0e8/%var2%
+SRCSRV: source files ---------------------------------------
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Collections\ConcurrentLruSet.cs*Raven.Sparrow/Sparrow/Collections/ConcurrentLruSet.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Collections\ConcurrentSet.cs*Raven.Sparrow/Sparrow/Collections/ConcurrentSet.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Comparers.cs*Raven.Sparrow/Sparrow/Comparers.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Hashing.cs*Raven.Sparrow/Sparrow/Hashing.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Memory.cs*Raven.Sparrow/Sparrow/Memory.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\ObjectPool.cs*Raven.Sparrow/Sparrow/ObjectPool.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Platform\Posix\PosixUnmanagedMemory.cs*Raven.Sparrow/Sparrow/Platform/Posix/PosixUnmanagedMemory.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Properties\AssemblyInfo.cs*Raven.Sparrow/Sparrow/Properties/AssemblyInfo.cs
+C:\work\ravendb3.5\ravendb\Raven.Sparrow\Sparrow\Platform\Win32\Win32UnmanagedMemory.cs*Raven.Sparrow/Sparrow/Platform/Win32/Win32UnmanagedMemory.cs
+SRCSRV: end ------------------------------------------------
