@@ -67,8 +67,7 @@ namespace NewBlittable
         public byte* GetMemory(int size, string documentId, out int actualSize)
         {
             Interlocked.Increment(ref _allocateMemoryCalls);
-            //TODO: Use Utils.NearestPowerOfTwo()
-            actualSize = (int) Math.Pow(2, Math.Ceiling(Math.Log(size, 2)));
+            actualSize = Utils.GetNextPowerOfTwo(size);
 
             AllocatedMemoryData memoryDataForLength;
             ConcurrentStack<AllocatedMemoryData> existingQueue;

@@ -93,6 +93,7 @@
     <Compile Include="Tests\UnmanagedStreamTests.cs" />
     <Compile Include="UnmanagedBuffersPool.cs" />
     <Compile Include="UnmanagedStream.cs" />
+    <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="App.config" />

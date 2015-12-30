@@ -16,7 +16,7 @@ namespace ConsoleApplication4
     public unsafe class BlittableJsonWriter : IDisposable
     {
         private readonly JsonReader _reader;
-        private readonly UnmanagedStream _stream;
+        private readonly UnmanagedWriteBuffer _writeBuffer;
         private readonly BlittableContext _context;
         private readonly Dictionary<string, int> _propertyNameToId = new Dictionary<string, int>();
         private readonly List<string> _docPropNames = new List<string>();

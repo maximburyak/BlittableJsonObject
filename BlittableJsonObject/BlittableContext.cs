@@ -14,7 +14,7 @@ namespace NewBlittable
         private readonly UnmanagedBuffersPool _pool;
         private byte* _bufferPtr;
         private int _bufferSize;
-        private readonly Sparrow.Collections.ConcurrentSet<WeakReference<UnmanagedStream>> _streams = new Sparrow.Collections.ConcurrentSet<WeakReference<UnmanagedStream>>();
+        private readonly Sparrow.Collections.ConcurrentSet<WeakReference<UnmanagedWriteBuffer>> _streams = new Sparrow.Collections.ConcurrentSet<WeakReference<UnmanagedWriteBuffer>>();
         public Encoder Encoder;
         public Decoder Decoder;
         public SparrowStringComparer Comparer = new SparrowStringComparer(); 
@@ -51,10 +51,10 @@ namespace NewBlittable
         /// <param name="documentId"></param>
         /// <param name="initialSize"></param>
         /// <returns></returns>
-        public UnmanagedStream GetStream(string documentId, int initialSize=64)
+        public UnmanagedWriteBuffer GetStream(string documentId, int initialSize=64)
         {
-            var unmanagedStream = new UnmanagedStream(_pool,documentId, initialSize);
-            _streams.Add(new WeakReference<UnmanagedStream>(unmanagedStream));
+            var unmanagedStream = new UnmanagedWriteBuffer(_pool,documentId, initialSize);
+            _streams.Add(new WeakReference<UnmanagedWriteBuffer>(unmanagedStream));
             return unmanagedStream;
         }
 
@@ -112,9 +112,9 @@ namespace NewBlittable
             _pool.ReturnMemory(_bufferPtr);
             foreach (var weakReference in _streams)
             {
-                UnmanagedStream curStream;
-                if (weakReference.TryGetTarget(out curStream)) 
-                    curStream.Dispose();
+                UnmanagedWriteBuffer curWriteBuffer;
+                if (weakReference.TryGetTarget(out curWriteBuffer)) 
+                    curWriteBuffer.Dispose();
             }
         }
     }

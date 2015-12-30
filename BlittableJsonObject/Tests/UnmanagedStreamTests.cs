@@ -15,7 +15,7 @@ namespace NewBlittable.Tests
             using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
-                var newStream = new UnmanagedStream(unmanagedByteArrayPool, "trolo", 64, 8);
+                var newStream = new UnmanagedWriteBuffer(unmanagedByteArrayPool, "trolo", 64, 8);
                 var totalSize = 0;
                 var rand = new Random();
                 var curSize = 0;
@@ -55,7 +55,7 @@ namespace NewBlittable.Tests
             using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
-                var newStream = new UnmanagedStream(unmanagedByteArrayPool, "trolo", 64, 8);
+                var newStream = new UnmanagedWriteBuffer(unmanagedByteArrayPool, "trolo", 64, 8);
                 var totalSize = 0;
                 var rand = new Random();
                 var curSize = 0;
@@ -95,7 +95,7 @@ namespace NewBlittable.Tests
             using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
-                var newStream = new UnmanagedStream(unmanagedByteArrayPool, "trolo", 64, 8);
+                var newStream = new UnmanagedWriteBuffer(unmanagedByteArrayPool, "trolo", 64, 8);
                 var totalSize = 0;
                 var rand = new Random();
                 var curSize = 0;
