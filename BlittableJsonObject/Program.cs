@@ -53,7 +53,7 @@ namespace ConsoleApplication4
             var unmanagedPool = new UnmanagedBuffersPool();
 
           
-            using (var blittableContext = new BlittableContext(unmanagedPool, 16))
+            using (var blittableContext = new BlittableContext(unmanagedPool))
             using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
                 "doc1"))
             {

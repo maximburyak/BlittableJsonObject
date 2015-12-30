@@ -88,7 +88,7 @@ namespace NewBlittable.Tests
             var unmanagedPool = new UnmanagedBuffersPool();
          
             var str = GetEmployeeString();
-            using (var blittableContext = new BlittableContext(unmanagedPool, 16))
+            using (var blittableContext = new BlittableContext(unmanagedPool))
             using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
                 "doc1"))
             {
@@ -120,7 +120,7 @@ namespace NewBlittable.Tests
             var unmanagedPool = new UnmanagedBuffersPool();
 
             var str = GetEmployeeString2();
-            using (var blittableContext = new BlittableContext(unmanagedPool, 16))
+            using (var blittableContext = new BlittableContext(unmanagedPool))
             using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
                 "doc1"))
             {
@@ -140,7 +140,7 @@ namespace NewBlittable.Tests
             var unmanagedPool = new UnmanagedBuffersPool();
 
             var str = GetEmployeeString2();
-            using (var blittableContext = new BlittableContext(unmanagedPool, 16))
+            using (var blittableContext = new BlittableContext(unmanagedPool))
             using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
                 "doc1"))
             {

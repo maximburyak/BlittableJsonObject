@@ -10,7 +10,6 @@ namespace NewBlittable
     {
         private readonly UnmanagedBuffersPool _buffersPool;
         private readonly string _documentId;
-        private readonly int _initialSize;
 
         private class Segment
         {
@@ -74,6 +73,7 @@ namespace NewBlittable
             };
         }
 
+        [MethodImpl(MethodImplOptions.AggressiveInlining)]
         public void WriteByte(byte data)
         {
             if (_current.Used == _current.ActualSize)

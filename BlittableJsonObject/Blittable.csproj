@@ -83,16 +83,20 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="BlittableContext.cs" />
+    <Compile Include="BlittableJsonReaderArray.cs" />
+    <Compile Include="BlittableJsonReaderObject.cs" />
+    <Compile Include="BlittableJsonToken.cs" />
     <Compile Include="BlittableJsonWriter.cs" />
-    <Compile Include="BlittableJsonReader.cs" />
+    <Compile Include="BlittableJsonReaderBase.cs" />
     <Compile Include="DynamicBlittableJson.cs" />
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="StringToByteComparer.cs" />
     <Compile Include="Tests\BlittableJsonWriterTests.cs" />
     <Compile Include="Tests\MemoryPoolTests.cs" />
     <Compile Include="Tests\UnmanagedStreamTests.cs" />
     <Compile Include="UnmanagedBuffersPool.cs" />
-    <Compile Include="UnmanagedStream.cs" />
+    <Compile Include="UnmanagedWriteBuffer.cs" />
     <Compile Include="Utils.cs" />
   </ItemGroup>
   <ItemGroup>
