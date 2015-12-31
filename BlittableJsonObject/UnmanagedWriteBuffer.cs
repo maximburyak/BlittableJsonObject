@@ -64,7 +64,7 @@ namespace NewBlittable
 
         private void AllocateNextSegment(int required)
         {
-            var nextSegmentSize = Math.Max(_current.ActualSize*2, Utils.GetNextPowerOfTwo(required));
+            var nextSegmentSize = Math.Max(_current.ActualSize*2, (int)Utils.GetNextPowerOfTwo(required));
             _current = new Segment
             {
                 Prev = _current,

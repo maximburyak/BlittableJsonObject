@@ -12,7 +12,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void BulkWriteAscendingSizeTest()
         {
-            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
+            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
                 var newStream = new UnmanagedWriteBuffer(unmanagedByteArrayPool, "trolo");
@@ -52,7 +52,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void BulkWriteDescendingSizeTest()
         {
-            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
+            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool(string.Empty,1024*1024*1024))
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
                 var newStream = new UnmanagedWriteBuffer(unmanagedByteArrayPool, "trolo");
@@ -92,7 +92,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void SingleByteWritesTest()
         {
-            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool())
+            using (var unmanagedByteArrayPool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
             {
                 List<Tuple<long, int>> allocatedMemory = new List<Tuple<long, int>>();
                 var newStream = new UnmanagedWriteBuffer(unmanagedByteArrayPool, "trolo");

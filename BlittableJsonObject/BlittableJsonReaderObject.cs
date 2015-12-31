@@ -1,7 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using ConsoleApplication4;
+using Raven.Json.Linq;
 
 namespace NewBlittable
 {
@@ -12,6 +14,7 @@ namespace NewBlittable
         private readonly long _currentOffsetSize;
         private readonly long _currentPropertyIdSize;
         private readonly byte* _objStart;
+        
 
         private Dictionary<string, object> cache;
 
@@ -24,7 +27,23 @@ namespace NewBlittable
 
             // init document level properties
             var propStartPos = size - sizeof(int) - sizeof(byte); //get start position of properties
-            _propNames = (int*)(mem + (*(int*)(mem + propStartPos)));
+            _propNames = (mem + (*(int*)(mem + propStartPos)));
+            var propNamesOffsetFlag = (BlittableJsonToken )(* (byte*) _propNames);
+            switch (propNamesOffsetFlag)
+            {
+                case BlittableJsonToken.OffsetSizeByte:
+                    _propNamesDataOffsetSize = sizeof (byte);
+                    break;
+                case BlittableJsonToken.OffsetSizeShort:
+                    _propNamesDataOffsetSize = sizeof (short);
+                    break;
+                case BlittableJsonToken.OffsetSizeInt:
+                    _propNamesDataOffsetSize = sizeof (int);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        $"Property names offset flag should be either byte, short of int, instead of {propNamesOffsetFlag}");
+            }
             // get pointer to property names array on document level
 
             // init root level object properties
@@ -51,6 +70,23 @@ namespace NewBlittable
             _size = parent._size;
             _propNames = parent._propNames;
 
+            var propNamesOffsetFlag = (BlittableJsonToken)(*(byte*)_propNames);
+            switch (propNamesOffsetFlag)
+            {
+                case BlittableJsonToken.OffsetSizeByte:
+                    _propNamesDataOffsetSize = sizeof(byte);
+                    break;
+                case BlittableJsonToken.OffsetSizeShort:
+                    _propNamesDataOffsetSize = sizeof(short);
+                    break;
+                case BlittableJsonToken.PropertyIdSizeInt:
+                    _propNamesDataOffsetSize = sizeof(int);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(
+                        $"Property names offset flag should be either byte, short of int, instead of {propNamesOffsetFlag}");
+            }
+
             _objStart = _mem + pos;
             byte propCountOffset;
             _propCount = ReadVariableSizeInt(pos, out propCountOffset);
@@ -61,19 +97,46 @@ namespace NewBlittable
             _currentPropertyIdSize = ProcessTokenPropertyFlags(type);
         }
 
+        
+        /// <summary>
+        /// Returns an array of property names, ordered in the order it was stored 
+        /// </summary>
+        /// <returns></returns>
         public string[] GetPropertyNames()
         {
-            var returnedValue = new string[_propCount];
+            var idsAndOffsets = new BlittableJsonWriter.PropertyTag[_propCount];
+            var sortedNames = new string[_propCount];
+            
             var metadataSize = (_currentOffsetSize + _currentPropertyIdSize + sizeof(byte));
-            //TODO: we want to return this in the order they were defined
+            
+            // Prepare an array of all offsets and property ids
             for (var i = 0; i < _propCount; i++)
             {
                 var propertyIntPtr = (long)_propTags + (i) * metadataSize;
                 var propertyId = ReadNumber((byte*)propertyIntPtr + _currentOffsetSize, _currentPropertyIdSize);
-                var propName = ReadStringLazily(_propNames[propertyId]);
-                returnedValue[i] = propName;
+                var propertyOffset = ReadNumber((byte*)propertyIntPtr, _currentOffsetSize);
+                idsAndOffsets[i] = new BlittableJsonWriter.PropertyTag
+                {
+                    Position = propertyOffset,
+                    PropertyId = propertyId
+                };
             }
-            return returnedValue;
+
+            // sort according to offsets
+            Array.Sort(idsAndOffsets,(tag1, tag2)=> tag2.Position- tag1.Position);
+
+            // generate string array, sorted according to it's offsets
+            for (int i = 0; i < _propCount; i++)
+            {
+                sortedNames[i] = ReadStringLazily(_propNames[idsAndOffsets[i].PropertyId]);
+            }
+            return sortedNames;
+        }
+
+        public RavenJObject GenerateRavenJObject()
+        {
+            // TODO: Implement!
+            return null;
         }
 
         public object this[string name]
@@ -105,7 +168,7 @@ namespace NewBlittable
                 var metadataSize = (_currentOffsetSize + _currentPropertyIdSize + sizeof(byte));
                 var propertyIntPtr = (long)_propTags + (mid) * metadataSize;
 
-                var offset = ReadNumber((byte*)propertyIntPtr, _currentPropertyIdSize);
+                var offset = ReadNumber((byte*)propertyIntPtr, _currentOffsetSize);
                 var propertyId = ReadNumber((byte*)propertyIntPtr + _currentOffsetSize, _currentPropertyIdSize);
                 var type =
                     (BlittableJsonToken)
@@ -141,14 +204,30 @@ namespace NewBlittable
             return false;
         }
 
-
+        /// <summary>
+        /// Compares property names between received StringToByteComparer and the string stored in the document's propery names storage
+        /// </summary>
+        /// <param name="propertyId">Position of the string in the property ids storage</param>
+        /// <param name="comparer">Comparer of a specific string value</param>
+        /// <returns></returns>
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
         private int ComparePropertyName(int propertyId, StringToByteComparer comparer)
         {
-            var pos = _propNames[propertyId];
-            byte offset;
-            var size = ReadVariableSizeInt(pos, out offset);
-            return comparer.Compare(_mem + pos + offset, size);
+            // Get the offset of the property name from the _proprNames position
+            var propertyNameOffsetPtr = _propNames + 1 + propertyId*_propNamesDataOffsetSize;
+            var propertyNameOffset = ReadNumber(propertyNameOffsetPtr, _propNamesDataOffsetSize);
+
+            // Get the relative "In Document" position of the property Name
+            var properyNameRelativePaosition = _propNames  - propertyNameOffset;
+            var position = properyNameRelativePaosition - _mem;
+
+            byte propertyNameLengthDataLength;
+
+            // Get the propertu name size
+            var size = ReadVariableSizeInt((int)position, out propertyNameLengthDataLength);
+
+            // Return result of comparison between proprty name and received comparer
+            return comparer.Compare(properyNameRelativePaosition + propertyNameLengthDataLength, size);
         }
 
     }

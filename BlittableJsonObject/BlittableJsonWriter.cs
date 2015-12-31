@@ -43,7 +43,7 @@ namespace ConsoleApplication4
             // enlarge buffer if needed
             if (minSize > _bufferSize)
             {
-                _bufferSize = Utils.GetNextPowerOfTwo(minSize);
+                _bufferSize = (int)Utils.GetNextPowerOfTwo(minSize);
             }
             return _context.GetTempBuffer(_bufferSize, out _bufferSize);
         }
@@ -54,6 +54,9 @@ namespace ConsoleApplication4
             return _stream.CopyTo(ptr);
         }
 
+        /// <summary>
+        /// Writes the json object from  reader received in the ctor into the received UnmanangedWriteBuffer
+        /// </summary>
         public void Write()
         {
             if (_reader.Read() == false)
@@ -61,27 +64,49 @@ namespace ConsoleApplication4
             if (_reader.TokenType != JsonToken.StartObject)
                 throw new InvalidDataException("Expected start of object, but got " + _reader.TokenType);
             BlittableJsonToken token;
+
+            // Write the whole object recursively
             var rootOffset = WriteObject(out token);
+
+            // Write the property names and register it's positions
             var propertyArrayOffset = new int[_docPropNames.Count];
             for (var index = 0; index < _docPropNames.Count; index++)
             {
                 propertyArrayOffset[index] = WriteString(_docPropNames[index]);
             }
+
+            // Register the position of the properties offsets start
             var propertiesStart = _position;
+
+            // Find the minimal space to store the offsets (byte,short,int) and raise the appropriate flag in the properties metadata
+            BlittableJsonToken propertiesSizeMetadata = 0;
+            var propertyNamesOffset = _position - rootOffset;
+            var propertyArrayOffsetValueByteSize = SetOffsetSizeFlag(ref propertiesSizeMetadata, propertyNamesOffset);
+            
+            WriteNumber((int)propertiesSizeMetadata, sizeof(byte));
+
+            // Write property names offsets
             for (var i = 0; i < propertyArrayOffset.Length; i++)
             {
-                WriteNumber(propertyArrayOffset[i], sizeof(int)); // todo: can be made smaller too
+                WriteNumber(propertiesStart - propertyArrayOffset[i], propertyArrayOffsetValueByteSize);
             }
             WriteNumber(rootOffset, sizeof(int));
             WriteNumber(propertiesStart, sizeof(int));
             WriteNumber((int)token, sizeof(byte));
         }
 
+        /// <summary>
+        /// Write an object to the UnamangedBuffer
+        /// </summary>
+        /// <param name="objectToken"></param>
+        /// <returns></returns>
         private int WriteObject(out BlittableJsonToken objectToken)
         {
             var properties = new List<PropertyTag>();
             var firstWrite = _position;
             var maxPropId = -1;
+
+            // Iterate through the object's properties, write it to the UnmanagedWriteBuffer and register it's names and positions
             while (true)
             {
                 if (_reader.Read() == false)
@@ -93,6 +118,7 @@ namespace ConsoleApplication4
                 if (_reader.TokenType != JsonToken.PropertyName)
                     throw new InvalidDataException("Expected start of object, but got " + _reader.TokenType);
 
+                // Get property index by name
                 var propName = (string)_reader.Value;
                 int propIndex;
                 if (_propertyNameToId.TryGetValue(propName, out propIndex) == false)
@@ -102,12 +128,16 @@ namespace ConsoleApplication4
                     _docPropNames.Add(_context.GetComparerFor(propName));
                 }
 
+                maxPropId = Math.Max(maxPropId, propIndex);
+
                 if (_reader.Read() == false)
                     throw new EndOfStreamException("Expected value, but got EOF");
 
+                // Write object property into the UnmanagedWriteBuffer
                 BlittableJsonToken token;
                 var valuePos = WriteValue(out token);
-                maxPropId = Math.Max(maxPropId, propIndex);
+                
+                // Register property possition, name id (PropertyId) and type (object type and metadata)
                 properties.Add(new PropertyTag
                 {
                     Position = valuePos,
@@ -116,61 +146,77 @@ namespace ConsoleApplication4
                 });
             }
 
+            // Sort object properties metadata by property names
             properties.Sort(CompareProperties);
+            
+            var objectMetadataStart = _position;
+            var distanceFromFirstProperty = objectMetadataStart - firstWrite;
 
-            var objectPropsStart = _position;
-            var distanceFromFirstProperty = objectPropsStart - firstWrite;
-
-            int positionSize, propertyIdSize;
+            // Find metadata size and properties offset and set appropriate flags in the BlittableJsonToken
             objectToken = BlittableJsonToken.StartObject;
-            if (distanceFromFirstProperty <= byte.MaxValue)
+            var positionSize = SetOffsetSizeFlag(ref objectToken, distanceFromFirstProperty);
+            var propertyIdSize = SetPropertyIdSizeFlag(ref objectToken, maxPropId);
+
+            _position += WriteVariableSizeNumber(properties.Count);
+
+            // Write object metadata
+            foreach (var sortedProperty in properties)
             {
-                positionSize = sizeof(byte);
-                objectToken |= BlittableJsonToken.OffsetSizeByte;
+                WriteNumber(objectMetadataStart - sortedProperty.Position, positionSize);
+                WriteNumber(sortedProperty.PropertyId, propertyIdSize);
+                _stream.WriteByte(sortedProperty.Type);
+                _position += positionSize + propertyIdSize + sizeof(byte);
             }
-            else
-            {
-                if (distanceFromFirstProperty <= ushort.MaxValue)
-                {
-                    positionSize = sizeof(short);
-                    objectToken |= BlittableJsonToken.OffsetSizeShort;
-                }
-                else
-                {
-                    positionSize = sizeof(int);
-                    objectToken |= BlittableJsonToken.OffsetSizeInt;
-                }
-            }
+
+            return objectMetadataStart;
+        }
+
+        private static int SetPropertyIdSizeFlag(ref BlittableJsonToken objectToken, int maxPropId)
+        {
+            int propertyIdSize;
             if (maxPropId <= byte.MaxValue)
             {
-                propertyIdSize = sizeof(byte);
+                propertyIdSize = sizeof (byte);
                 objectToken |= BlittableJsonToken.PropertyIdSizeByte;
             }
             else
             {
                 if (maxPropId <= ushort.MaxValue)
                 {
-                    propertyIdSize = sizeof(short);
+                    propertyIdSize = sizeof (short);
                     objectToken |= BlittableJsonToken.PropertyIdSizeShort;
                 }
                 else
                 {
-                    propertyIdSize = sizeof(int);
+                    propertyIdSize = sizeof (int);
                     objectToken |= BlittableJsonToken.PropertyIdSizeInt;
                 }
             }
+            return propertyIdSize;
+        }
 
-            _position += WriteVariableSizeNumber(properties.Count);
-
-            foreach (var sortedProperty in properties)
+        private static int SetOffsetSizeFlag(ref BlittableJsonToken objectToken, int distanceFromFirstProperty)
+        {
+            int positionSize;
+            if (distanceFromFirstProperty <= byte.MaxValue)
             {
-                WriteNumber(objectPropsStart - sortedProperty.Position, positionSize);
-                WriteNumber(sortedProperty.PropertyId, propertyIdSize);
-                _stream.WriteByte(sortedProperty.Type);
-                _position += positionSize + propertyIdSize + sizeof(byte);
+                positionSize = sizeof (byte);
+                objectToken |= BlittableJsonToken.OffsetSizeByte;
             }
-
-            return objectPropsStart;
+            else
+            {
+                if (distanceFromFirstProperty <= ushort.MaxValue)
+                {
+                    positionSize = sizeof (short);
+                    objectToken |= BlittableJsonToken.OffsetSizeShort;
+                }
+                else
+                {
+                    positionSize = sizeof (int);
+                    objectToken |= BlittableJsonToken.OffsetSizeInt;
+                }
+            }
+            return positionSize;
         }
 
         private int CompareProperties(PropertyTag x, PropertyTag y)
@@ -255,27 +301,10 @@ namespace ConsoleApplication4
             var distanceFromFirstItem = arrayInfoStart - positions[0];
             _position += WriteVariableSizeNumber(positions.Count);
 
-            int distanceTypeSize;
+            
             arrayToken = BlittableJsonToken.StartArray;
 
-            if (distanceFromFirstItem <= byte.MaxValue)
-            {
-                distanceTypeSize = sizeof(byte);
-                arrayToken |= BlittableJsonToken.OffsetSizeByte;
-            }
-            else
-            {
-                if (distanceFromFirstItem <= ushort.MaxValue)
-                {
-                    distanceTypeSize = sizeof(short);
-                    arrayToken |= BlittableJsonToken.OffsetSizeShort;
-                }
-                else
-                {
-                    distanceTypeSize = sizeof(int);
-                    arrayToken |= BlittableJsonToken.OffsetSizeInt;
-                }
-            }
+            var distanceTypeSize = SetOffsetSizeFlag(ref arrayToken, distanceFromFirstItem);
 
             for (var i = 0; i < positions.Count; i++)
             {

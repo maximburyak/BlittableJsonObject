@@ -10,7 +10,8 @@ namespace NewBlittable
     {
         internal byte* _mem;
         internal int _size;
-        internal int* _propNames;
+        internal byte* _propNames;
+        internal int _propNamesDataOffsetSize;
         internal BlittableContext _context;
 
         public int ProcessTokenPropertyFlags(BlittableJsonToken currentType)

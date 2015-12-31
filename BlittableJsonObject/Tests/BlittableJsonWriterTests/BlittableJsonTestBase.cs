@@ -10,11 +10,11 @@ using Raven.Abstractions.Linq;
 using Raven.Json.Linq;
 using Xunit;
 
-namespace NewBlittable.Tests
+namespace NewBlittable.Tests.BlittableJsonWriterTests
 {
-    public class BlittableJsonBase
+    public class BlittableJsonTestBase
     {
-        public string GetEmployeeString()
+        public string GenerateSimpleEntityForFunctionalityTest()
         {
             object employee = new
             {
@@ -34,10 +34,10 @@ namespace NewBlittable.Tests
             var jsonWriter = new JsonTextWriter(stringWriter);
             jsonSerializer.Serialize(jsonWriter, employee);
 
-           return stringWriter.ToString();
+            return stringWriter.ToString();
         }
 
-        public string GetEmployeeString2()
+        public string GenerateSimpleEntityForFunctionalityTest2()
         {
             object employee = new
             {
@@ -61,8 +61,8 @@ namespace NewBlittable.Tests
                 {
                     Manager = new
                     {
-                      Name="Assi",
-                      Id=44  
+                        Name = "Assi",
+                        Id = 44
                     },
                     Name = "Hibernating Rhinos",
                     Street = "Hanais 21",
@@ -77,86 +77,9 @@ namespace NewBlittable.Tests
 
             return stringWriter.ToString();
         }
-    }
-    public unsafe class BlittableJsonWriterReaderTests:BlittableJsonBase
-    {
-        [Fact]
-        public void BasicTest()
-        {
-            byte* ptr;
-            int size = 0;
-            var unmanagedPool = new UnmanagedBuffersPool();
-         
-            var str = GetEmployeeString();
-            using (var blittableContext = new BlittableContext(unmanagedPool))
-            using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
-                "doc1"))
-            {
-                employee.Write();
-                ptr = unmanagedPool.GetMemory(employee.SizeInBytes, string.Empty, out size);
-                employee.CopyTo(ptr);
 
-                dynamic dynamicRavenJObject = new DynamicJsonObject(RavenJObject.Parse(str));
-                dynamic dynamicBlittableJObject = new DynamicBlittableJson(ptr, employee.SizeInBytes, blittableContext);
-                Assert.Equal(dynamicRavenJObject.Age, dynamicBlittableJObject.Age);
-                Assert.Equal(dynamicRavenJObject.Name, dynamicBlittableJObject.Name);
-                Assert.Equal(dynamicRavenJObject.Dogs.Count, dynamicBlittableJObject.Dogs.Count);
-                for (var i = 0; i < dynamicBlittableJObject.Dogs.Length; i++)
-                {
-                    Assert.Equal(dynamicRavenJObject.Dogs[i], dynamicBlittableJObject.Dogs[i]);
-                }
-                Assert.Equal(dynamicRavenJObject.Office.Name, dynamicRavenJObject.Office.Name);
-                Assert.Equal(dynamicRavenJObject.Office.Street, dynamicRavenJObject.Office.Street);
-                Assert.Equal(dynamicRavenJObject.Office.City, dynamicRavenJObject.Office.City);
-            }
-
-        }
-
-        [Fact]
-        public void BasicTest2()
-        {
-            byte* ptr;
-            int size = 0;
-            var unmanagedPool = new UnmanagedBuffersPool();
-
-            var str = GetEmployeeString2();
-            using (var blittableContext = new BlittableContext(unmanagedPool))
-            using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
-                "doc1"))
-            {
-                employee.Write();
-                ptr = unmanagedPool.GetMemory(employee.SizeInBytes, string.Empty, out size);
-                employee.CopyTo(ptr);
-
-                AssertComplexEmployee(str, ptr, employee, blittableContext);
-            }
-        }
-
-        [Fact]
-        public void ConcurrentReadsTest()
-        {
-            byte* ptr;
-            int size = 0;
-            var unmanagedPool = new UnmanagedBuffersPool();
-
-            var str = GetEmployeeString2();
-            using (var blittableContext = new BlittableContext(unmanagedPool))
-            using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
-                "doc1"))
-            {
-                employee.Write();
-                ptr = unmanagedPool.GetMemory(employee.SizeInBytes, string.Empty, out size);
-                employee.CopyTo(ptr);
-
-                Parallel.ForEach(Enumerable.Range(0, 100), x =>
-                {
-                    AssertComplexEmployee(str, ptr, employee, blittableContext);
-                });
-            }
-        }
-
-        private static unsafe void AssertComplexEmployee(string str, byte* ptr, BlittableJsonWriter employee,
-            BlittableContext blittableContext)
+        protected static unsafe void AssertComplexEmployee(string str, byte* ptr, BlittableJsonWriter employee,
+         BlittableContext blittableContext)
         {
             dynamic dynamicRavenJObject = new DynamicJsonObject(RavenJObject.Parse(str));
             dynamic dynamicBlittableJObject = new DynamicBlittableJson(ptr, employee.SizeInBytes,

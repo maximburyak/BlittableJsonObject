@@ -92,7 +92,10 @@
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="StringToByteComparer.cs" />
-    <Compile Include="Tests\BlittableJsonWriterTests.cs" />
+    <Compile Include="Tests\BlittableJsonWriterTests\FunctionalityTests.cs" />
+    <Compile Include="Tests\BlittableJsonWriterTests\BlittableJsonTestBase.cs" />
+    <Compile Include="Tests\BlittableJsonWriterTests\ConcurrentAccessTests.cs" />
+    <Compile Include="Tests\BlittableJsonWriterTests\VariousPropertyAmountsTests.cs" />
     <Compile Include="Tests\MemoryPoolTests.cs" />
     <Compile Include="Tests\UnmanagedStreamTests.cs" />
     <Compile Include="UnmanagedBuffersPool.cs" />

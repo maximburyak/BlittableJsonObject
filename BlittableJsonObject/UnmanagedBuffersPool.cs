@@ -4,22 +4,28 @@ using System.Diagnostics;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Threading;
+using Raven.Abstractions.Logging;
+using Raven.Database.Config;
 
 namespace NewBlittable
 {
-    //TODO: implement low memory interface
-    //TODO: policy for max size for buffer, after which we cleanup
     public unsafe class UnmanagedBuffersPool : IDisposable
     {
+        private readonly string _databaseName;
+        private readonly int _maxSize;
+
         private readonly ConcurrentDictionary<IntPtr, AllocatedMemoryData> _allocatedSegments =
             new ConcurrentDictionary<IntPtr, AllocatedMemoryData>();
 
         private readonly ConcurrentDictionary<int, ConcurrentStack<AllocatedMemoryData>> _freeSegments =
             new ConcurrentDictionary<int, ConcurrentStack<AllocatedMemoryData>>();
 
+        private static readonly ILog log = LogManager.GetCurrentClassLogger();
+
         private int _allocateMemoryCalls;
         private bool _isDisposed;
         private int _returnMemoryCalls;
+        private long _currentSize;
 
         public class AllocatedMemoryData
         {
@@ -28,9 +34,49 @@ namespace NewBlittable
             public int SizeInBytes;
         }
 
+        public UnmanagedBuffersPool(string databaseName, int maxSize)
+        {
+            _databaseName = databaseName;
+            _maxSize = maxSize;
+        }
+
+        // todo: add test that test concurrent handle low memory and allocations
+        public void HandleLowMemory()
+        {
+            foreach (var key in _freeSegments.Keys)
+            {
+                ConcurrentStack<AllocatedMemoryData> curKeyStack;
+                if (_freeSegments.TryRemove(key, out curKeyStack))
+                {
+                    AllocatedMemoryData curAllocatedMemoryData;
+                    while (curKeyStack.TryPop(out curAllocatedMemoryData))
+                    {
+                        Marshal.FreeHGlobal(curAllocatedMemoryData.Address);
+                        Interlocked.Add(ref _currentSize, curAllocatedMemoryData.SizeInBytes * -1);
+                    }
+                }
+            }
+        }
+
+        public void SoftMemoryRelease()
+        {
+            
+        }
+
+        public LowMemoryHandlerStatistics GetStats()
+        {
+            return new LowMemoryHandlerStatistics
+            {
+                DatabaseName = _databaseName,
+                EstimatedUsedMemory = _currentSize,
+                Name = "UnmanagedBufferPool"
+            };
+        }
+
         ~UnmanagedBuffersPool()
         {
-            //TODO: Emit warning to log about un-disposed instance
+            if (_isDisposed==false)
+                log.Warn("UnmanagedBuffersPool being finalized before it was disposed");
             Dispose();
         }
 
@@ -44,17 +90,20 @@ namespace NewBlittable
                 foreach (var mem in allocationQueue.Value)
                 {
                     Marshal.FreeHGlobal(mem.Address);
+                    Interlocked.Add(ref _currentSize, mem.SizeInBytes*-1);
                 }
             }
 
             foreach (var allocatedMemory in _allocatedSegments.Values)
             {
                 Marshal.FreeHGlobal(allocatedMemory.Address);
+                Interlocked.Add(ref _currentSize, allocatedMemory.SizeInBytes * -1);
             }
             _freeSegments.Clear();
             _allocatedSegments.Clear();
             _isDisposed = true;
             GC.SuppressFinalize(this);
+            
         }
 
         /// <summary>
@@ -67,7 +116,7 @@ namespace NewBlittable
         public byte* GetMemory(int size, string documentId, out int actualSize)
         {
             Interlocked.Increment(ref _allocateMemoryCalls);
-            actualSize = Utils.GetNextPowerOfTwo(size);
+            actualSize = (int)Utils.GetNextPowerOfTwo(size);
 
             AllocatedMemoryData memoryDataForLength;
             ConcurrentStack<AllocatedMemoryData> existingQueue;
@@ -83,6 +132,7 @@ namespace NewBlittable
                         SizeInBytes = actualSize,
                         Address = Marshal.AllocHGlobal(actualSize)
                     };
+                    Interlocked.Add(ref _currentSize, actualSize);
                 }
             }
             else
@@ -92,6 +142,7 @@ namespace NewBlittable
                     SizeInBytes = actualSize,
                     Address = Marshal.AllocHGlobal(actualSize)
                 };
+                Interlocked.Add(ref _currentSize, actualSize);
             }
             memoryDataForLength.DocumentId = documentId;
 
@@ -101,7 +152,8 @@ namespace NewBlittable
                 throw new AccessViolationException(
                     $"Allocated memory at address {memoryDataForLength.Address} was already allocated");
             }
-
+            if (_currentSize >= _maxSize)
+                HandleLowMemory();
             return (byte*) memoryDataForLength.Address;
         }
 

@@ -13,7 +13,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void SerialAllocationAndRelease()
         {
-            using (var pool = new UnmanagedBuffersPool())
+            using (var pool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
             {
                 var allocatedMemory = new List<Tuple<int, ulong>>();
                 for (var i = 0; i < 1000; i++)
@@ -33,7 +33,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void ParallelAllocationAndReleaseSeperately()
         {
-            using (var pool = new UnmanagedBuffersPool())
+            using (var pool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
             {
                 var allocatedMemory = new Sparrow.Collections.ConcurrentSet<Tuple<int, ulong>>();
                 Parallel.For(0, 1000, x =>
@@ -57,7 +57,7 @@ namespace NewBlittable.Tests
         [Fact]
         public void ParallelSerialAllocationAndRelease()
         {
-            using (var pool = new UnmanagedBuffersPool())
+            using (var pool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
             {
                 var allocatedMemory = new BlockingCollection<Tuple<int, ulong>>();
                 Task.Run(() =>

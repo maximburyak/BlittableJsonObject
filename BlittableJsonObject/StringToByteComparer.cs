@@ -110,5 +110,12 @@ namespace NewBlittable
                 return (int) hash;
             }
         }
+
+        public override string ToString()
+        {
+            var thisAsString = (string)this;
+            return (string)thisAsString.Clone();
+        }
+
     }
 }
