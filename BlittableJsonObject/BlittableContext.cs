@@ -5,6 +5,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading.Tasks;
+using Voron.Util;
 
 namespace NewBlittable
 {
@@ -21,6 +22,8 @@ namespace NewBlittable
 
         public Encoder Encoder;
         public Decoder Decoder;
+
+        public LZ4 Lz4 = new LZ4();
 
         public BlittableContext(UnmanagedBuffersPool pool)
         {
@@ -60,7 +63,7 @@ namespace NewBlittable
         {
             if (_disposed)
                 return;
-
+            Lz4.Dispose();
             _pool.ReturnMemory(_tempBuffer);
             foreach (var stringToByteComparable in _fieldNames.Values)
             {

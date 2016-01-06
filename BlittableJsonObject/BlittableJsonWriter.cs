@@ -6,6 +6,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using NewBlittable;
 using Newtonsoft.Json;
+using Voron.Util;
 
 namespace ConsoleApplication4
 {
@@ -72,7 +73,8 @@ namespace ConsoleApplication4
             var propertyArrayOffset = new int[_docPropNames.Count];
             for (var index = 0; index < _docPropNames.Count; index++)
             {
-                propertyArrayOffset[index] = WriteString(_docPropNames[index]);
+                BlittableJsonToken _;
+                propertyArrayOffset[index] = WriteString((string)_docPropNames[index], out _, compress: false);
             }
 
             // Register the position of the properties offsets start
@@ -82,7 +84,7 @@ namespace ConsoleApplication4
             BlittableJsonToken propertiesSizeMetadata = 0;
             var propertyNamesOffset = _position - rootOffset;
             var propertyArrayOffsetValueByteSize = SetOffsetSizeFlag(ref propertiesSizeMetadata, propertyNamesOffset);
-            
+
             WriteNumber((int)propertiesSizeMetadata, sizeof(byte));
 
             // Write property names offsets
@@ -136,7 +138,7 @@ namespace ConsoleApplication4
                 // Write object property into the UnmanagedWriteBuffer
                 BlittableJsonToken token;
                 var valuePos = WriteValue(out token);
-                
+
                 // Register property possition, name id (PropertyId) and type (object type and metadata)
                 properties.Add(new PropertyTag
                 {
@@ -148,7 +150,7 @@ namespace ConsoleApplication4
 
             // Sort object properties metadata by property names
             properties.Sort(CompareProperties);
-            
+
             var objectMetadataStart = _position;
             var distanceFromFirstProperty = objectMetadataStart - firstWrite;
 
@@ -176,19 +178,19 @@ namespace ConsoleApplication4
             int propertyIdSize;
             if (maxPropId <= byte.MaxValue)
             {
-                propertyIdSize = sizeof (byte);
+                propertyIdSize = sizeof(byte);
                 objectToken |= BlittableJsonToken.PropertyIdSizeByte;
             }
             else
             {
                 if (maxPropId <= ushort.MaxValue)
                 {
-                    propertyIdSize = sizeof (short);
+                    propertyIdSize = sizeof(short);
                     objectToken |= BlittableJsonToken.PropertyIdSizeShort;
                 }
                 else
                 {
-                    propertyIdSize = sizeof (int);
+                    propertyIdSize = sizeof(int);
                     objectToken |= BlittableJsonToken.PropertyIdSizeInt;
                 }
             }
@@ -200,19 +202,19 @@ namespace ConsoleApplication4
             int positionSize;
             if (distanceFromFirstProperty <= byte.MaxValue)
             {
-                positionSize = sizeof (byte);
+                positionSize = sizeof(byte);
                 objectToken |= BlittableJsonToken.OffsetSizeByte;
             }
             else
             {
                 if (distanceFromFirstProperty <= ushort.MaxValue)
                 {
-                    positionSize = sizeof (short);
+                    positionSize = sizeof(short);
                     objectToken |= BlittableJsonToken.OffsetSizeShort;
                 }
                 else
                 {
-                    positionSize = sizeof (int);
+                    positionSize = sizeof(int);
                     objectToken |= BlittableJsonToken.OffsetSizeInt;
                 }
             }
@@ -245,8 +247,7 @@ namespace ConsoleApplication4
                     token = BlittableJsonToken.Float;
                     return start;
                 case JsonToken.String:
-                    WriteString((string)_reader.Value);
-                    token = BlittableJsonToken.String;
+                    WriteString((string)_reader.Value, out token);
                     return start;
                 case JsonToken.Boolean:
                     var value = (byte)((bool)_reader.Value ? 1 : 0);
@@ -261,7 +262,9 @@ namespace ConsoleApplication4
                     token = BlittableJsonToken.Null;
                     return start; // nothing to do here, we handle that with the token
                 case JsonToken.Date:
-                    throw new NotImplementedException("Writing /*dates*/ is not supported");
+                    //TODO: Use the optimized version
+                    WriteString(((DateTime)_reader.Value).ToString("r"), out token);
+                    return start;
                 case JsonToken.Bytes:
                     throw new NotImplementedException("Writing bytes is not supported");
                 // ReSharper disable RedundantCaseLabel
@@ -297,13 +300,16 @@ namespace ConsoleApplication4
                 positions.Add(pos);
             }
             var arrayInfoStart = _position;
-
-            var distanceFromFirstItem = arrayInfoStart - positions[0];
-            _position += WriteVariableSizeNumber(positions.Count);
-
-            
             arrayToken = BlittableJsonToken.StartArray;
 
+            _position += WriteVariableSizeNumber(positions.Count);
+            if (positions.Count == 0)
+            {
+                arrayToken |= BlittableJsonToken.OffsetSizeByte;
+                return arrayInfoStart;
+            }
+
+            var distanceFromFirstItem = arrayInfoStart - positions[0];
             var distanceTypeSize = SetOffsetSizeFlag(ref arrayToken, distanceFromFirstItem);
 
             for (var i = 0; i < positions.Count; i++)
@@ -322,28 +328,47 @@ namespace ConsoleApplication4
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
-        public int WriteString(string str)
+        public int WriteString(string str, out BlittableJsonToken token, bool compress = true)
         {
             var startPos = _position;
-            int byteLen;
-
             fixed (char* pChars = str)
             {
+                token = BlittableJsonToken.String;
+
                 var strByteCount = _encoder.GetByteCount(pChars, str.Length, true);
-
-                // write amount of bytes the string is going to take
                 _position += WriteVariableSizeNumber(strByteCount);
-                var buffer = GetTempBuffer(strByteCount);
-                byteLen = _encoder.GetBytes(pChars, str.Length, buffer, _bufferSize, true);
 
+                int bufferSize = strByteCount;
+                var shouldCompress = compress && strByteCount > 128;
+                if (shouldCompress)
+                {
+                    bufferSize += LZ4.MaximumOutputLength(strByteCount);
+                }
+
+                var buffer = GetTempBuffer(bufferSize);
+                var byteLen = _encoder.GetBytes(pChars, str.Length, buffer, _bufferSize, true);
                 if (byteLen != strByteCount)
-                    throw new FormatException("calaculated and real byte length did not match, should not happen");
+                    throw new FormatException("Calculated and real byte length did not match, should not happen");
+
+                if (shouldCompress)
+                {
+                    var compressedSize = _context.Lz4.Encode64(buffer, buffer + byteLen, byteLen, _bufferSize - byteLen);
+
+                    // only if we actually save more than 10% in space will 
+                    // we agree to do this
+                    if (strByteCount - compressedSize > strByteCount / 10)
+                    {
+                        token = BlittableJsonToken.CompressedString;
+                        buffer += byteLen;
+                        byteLen = compressedSize;
+                        _position += WriteVariableSizeNumber(compressedSize);
+                    }
+                }
 
                 _stream.Write(buffer, byteLen);
                 _position += byteLen;
+                return startPos;
             }
-
-            return startPos;
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]

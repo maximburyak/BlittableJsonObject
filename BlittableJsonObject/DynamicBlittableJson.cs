@@ -11,7 +11,7 @@ namespace ConsoleApplication4
     {
         protected BlittableJsonReaderObject BlittableJsonReaderObject;
 
-        private class DynamicBlittableArray : DynamicObject
+        public class DynamicBlittableArray : DynamicObject
         {
             protected BlittableJsonReaderArray BlittableJsonReaderArray;
 

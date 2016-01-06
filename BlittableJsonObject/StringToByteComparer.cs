@@ -42,6 +42,7 @@ namespace NewBlittable
         {
             return CompareTo(other) == 0;
         }
+        
 
         public bool Equals(StringToByteComparer other)
         {
@@ -70,6 +71,7 @@ namespace NewBlittable
         }
 
         public static implicit operator string(StringToByteComparer self)
+
         {
             if (self.String != null)
                 return self.String;
@@ -86,13 +88,17 @@ namespace NewBlittable
 
         public override bool Equals(object obj)
         {
+            if (ReferenceEquals(obj, null))
+                return false;
+
             var s = obj as string;
             if (s != null)
                 return Equals(s);
             var comparer = obj as StringToByteComparer;
             if (comparer != null)
                 return Equals(comparer);
-            return false;
+
+            return ReferenceEquals(obj, this);
         }
 
         public override int GetHashCode()
@@ -113,8 +119,7 @@ namespace NewBlittable
 
         public override string ToString()
         {
-            var thisAsString = (string)this;
-            return (string)thisAsString.Clone();
+            return (string)this; // invoke the implicit string conversion
         }
 
     }

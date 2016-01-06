@@ -128,7 +128,7 @@ namespace NewBlittable
             // generate string array, sorted according to it's offsets
             for (int i = 0; i < _propCount; i++)
             {
-                sortedNames[i] = ReadStringLazily(_propNames[idsAndOffsets[i].PropertyId]);
+                sortedNames[i] = (string) ReadStringLazily(_propNames[idsAndOffsets[i].PropertyId]);
             }
             return sortedNames;
         }

@@ -27,6 +27,11 @@ namespace NewBlittable
         private int _returnMemoryCalls;
         private long _currentSize;
 
+        public long CurrentSize
+        {
+            get { return _currentSize; }
+        }
+
         public class AllocatedMemoryData
         {
             public IntPtr Address;

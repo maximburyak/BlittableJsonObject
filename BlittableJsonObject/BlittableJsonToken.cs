@@ -10,8 +10,9 @@ namespace ConsoleApplication4
         Integer = 3,
         Float = 4,
         String = 5,
-        Boolean = 6,
-        Null = 7,
+        CompressedString = 6,
+        Boolean = 7,
+        Null = 8,
 
         // Position sizes 
         OffsetSizeByte = 16,

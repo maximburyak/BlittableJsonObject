@@ -3,46 +3,18 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
-using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using NewBlittable;
-using NewBlittable.Tests;
-using NewBlittable.Tests.Benchmark;
+using ConsoleApplication4;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using Raven.Abstractions.Linq;
-using Raven.Json.Linq;
 
-
-namespace ConsoleApplication4
+namespace NewBlittable.Tests.Benchmark
 {
-    class Program
+    public class BigJsonsBenchmark
     {
-        public class Employee
-        {
-            public string Name;
-            public int Age;
-            public List<string> Dogs;
-            public EOffice Office;
-
-            public class EOffice
-            {
-                public string Name;
-                public string Street;
-                public string City;
-            }
-        }
-
-
-        unsafe static void Main(string[] args)
-        {
-            //PerformanceAnalysis();
-            //BigJsonsBenchmark.PerformanceAnalysis();
-            new FunctionalityTests().LongStringsTest(100);
-        }
-
-        private static void PerformanceAnalysis()
+        public static void PerformanceAnalysis()
         {
             using (var byteInAllHeapsConter = new PerformanceCounter(
                 ".NET CLR Memory", "# Bytes in all Heaps", Process.GetCurrentProcess().ProcessName))
@@ -57,14 +29,11 @@ namespace ConsoleApplication4
                 {
                     Console.WriteLine(jsonFile);
                     var jsonFileText = File.ReadAllText(jsonFile);
-                    var jsonStringReader = new JsonTextReader(new StringReader(jsonFileText));
 
-                    var before = GC.GetTotalMemory(true);
-                    var sp = Stopwatch.StartNew();
-                    while (jsonStringReader.Read())
-                    {
-                    }
-                    var simpleReadTime = sp.ElapsedMilliseconds;
+                    Stopwatch sp;
+                    long simpleReadTime;
+                    //var results = JsonProcessorRunner(()=>)
+                    var before = SimpleJsonIteration(jsonFileText, out sp, out simpleReadTime);
                     Console.WriteLine(
                         $"Simple JSON Read Time:{simpleReadTime:#,#} mem: {GC.GetTotalMemory(false) - before:#,#} bytes");
                     before = GC.GetTotalMemory(true);
@@ -91,41 +60,56 @@ namespace ConsoleApplication4
                         var blittableObjectReadTime = sp.ElapsedMilliseconds;
 
                         Console.WriteLine($"Json Object Read Time:{blittableObjectReadTime} " +
-                                          $"mem: {GC.GetTotalMemory(false) - before:#,#} bytes unmanaged {unmanagedPool.CurrentSize:#,#} bytes");
+                                          $"mem: {GC.GetTotalMemory(false) - before:#,#} bytes unmanaged " +
+                                          $"{unmanagedPool.CurrentSize:#,#} bytes, size {employee.SizeInBytes:#,#}");
                     }
                 }
             }
         }
 
-        /*var file = @"C:\Users\bumax_000\Downloads\JsonExamples\file.txt";
-
-        var str = File.ReadAllText(file);
-
-        byte* ptr;
-        int size = 0;
-        var unmanagedPool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024);
-
-
-        //var jsonTextReader = new JsonTextReader(new StringReader(str));
-        //while (jsonTextReader.Read())
-        //{
-        //}
-
-
-        //JObject.Load(jsonTextReader);
-
-        using (var blittableContext = new BlittableContext(unmanagedPool))
-        using (var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(str)), blittableContext,
-            "doc1"))
+        public class OperationResults
         {
-            employee.Write();
-
-            Console.WriteLine(new FileInfo(file).Length.ToString("#,#"));
-            Console.WriteLine(employee.SizeInBytes.ToString("#,#"));
-
+            public Dictionary<string, List<CounterSample>> CountersValues;
         }
-     */
+
+        //public OperationResults JsonProcessorRunner(Action processor, List<PerformanceCounter> counters)
+        //{
+        //    var results = new OperationResults
+        //    {
+        //        CountersValues = new Dictionary<string, List<CounterSample>>()
+        //    };
+        //    int signaled = 0;
+        //    foreach (var counter in counters)
+        //    {
+        //        results.CountersValues.Add($"{counter.CategoryName}\\{counter.CounterName}",new List<CounterSample>());
+        //    }
+
+        //    var jsonProcessorTask = Task.Run(processor).ContinueWith(x=>Interlocked.Exchange(ref signaled, 1));
+        //    var countersCollectorTask = Task.Run(() =>
+        //    {
+        //        while (Interlocked.CompareExchange(ref signaled,1,1)== 0)
+        //        {
+        //            foreach (var counter in counters)
+        //            {
+        //                results.CountersValues[$"{counter.CategoryName}\\{counter.CounterName}"].Add(counter.NextSample());
+        //            }
+        //            Thread.Sleep(30);
+        //        }
+        //    });
+        //    Task.WaitAll(new[] {jsonProcessorTask, countersCollectorTask});
+        //    return null;
+        //}
+        
+        private static long SimpleJsonIteration(string jsonFileText, out Stopwatch sp, out long simpleReadTime)
+        {
+            var jsonStringReader = new JsonTextReader(new StringReader(jsonFileText));
+            var before = GC.GetTotalMemory(true);
+            sp = Stopwatch.StartNew();
+            while (jsonStringReader.Read())
+            {
+            }
+            simpleReadTime = sp.ElapsedMilliseconds;
+            return before;
+        }
     }
-
-
 }

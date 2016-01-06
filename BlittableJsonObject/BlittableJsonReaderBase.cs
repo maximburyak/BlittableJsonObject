@@ -64,7 +64,8 @@ namespace NewBlittable
                 BlittableJsonToken.Null | 
                 BlittableJsonToken.StartArray |
                 BlittableJsonToken.StartObject | 
-                BlittableJsonToken.String;
+                BlittableJsonToken.String | 
+                BlittableJsonToken.CompressedString;
             switch (type & typesMask)
             {
                 case BlittableJsonToken.StartObject:
@@ -75,6 +76,8 @@ namespace NewBlittable
                     return ReadVariableSizeInteger(position);
                 case BlittableJsonToken.String:
                     return ReadStringLazily(position);
+                case BlittableJsonToken.CompressedString:
+                    return ReadCompressStringLazily(position);
                 case BlittableJsonToken.Boolean:
                     return ReadNumber(_mem + position, 1) == 0;
                 case BlittableJsonToken.Null:
@@ -115,6 +118,16 @@ namespace NewBlittable
             var size = ReadVariableSizeInt(pos, out offset);
 
             return new StringToByteComparer(null, _mem + pos + offset, size, _context);
+        }
+
+        public CompressedStringToByteComparer ReadCompressStringLazily(int pos)
+        {
+            byte offset;
+            var uncompressedSize = ReadVariableSizeInt(pos, out offset);
+            pos += offset;
+            var compressedSize = ReadVariableSizeInt(pos, out offset);
+            pos += offset;
+            return new CompressedStringToByteComparer(null, _mem + pos, uncompressedSize, compressedSize, _context);
         }
 
         public int ReadVariableSizeInt(int pos, out byte offset)
