@@ -39,7 +39,11 @@ namespace ConsoleApplication4
         {
             //PerformanceAnalysis();
             //BigJsonsBenchmark.PerformanceAnalysis();
-            new FunctionalityTests().LongStringsTest(100);
+            ProfilerWork.Run(3);
+            Console.WriteLine("Ready..");
+            Console.ReadLine();
+            ProfilerWork.Run(10);
+            //new FunctionalityTests().LongStringsTest(100);
         }
 
         private static void PerformanceAnalysis()

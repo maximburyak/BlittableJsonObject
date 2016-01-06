@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -14,54 +15,76 @@ namespace NewBlittable.Tests.Benchmark
 {
     public class BigJsonsBenchmark
     {
-        public static void PerformanceAnalysis()
+        public static void PerformanceAnalysis(string directory = @"C:\Users\bumax_000\Downloads\JsonExamples", string outputFile = @"C:\Users\bumax_000\Downloads\JsonExamples\output.csv")
         {
+            using(var fs = new StreamWriter("out.csv"))
             using (var byteInAllHeapsConter = new PerformanceCounter(
                 ".NET CLR Memory", "# Bytes in all Heaps", Process.GetCurrentProcess().ProcessName))
             using (var processProcessorTimeCounter = new PerformanceCounter(
-            "Process", "% Processor Time", Process.GetCurrentProcess().ProcessName))
-            using (var processPrivateBytes = new PerformanceCounter(
-            "Process", "Private Bytes", Process.GetCurrentProcess().ProcessName))
+                "Process", "% Processor Time", Process.GetCurrentProcess().ProcessName))
+            using (var processPrivateBytesCounter = new PerformanceCounter(
+                "Process", "Private Bytes", Process.GetCurrentProcess().ProcessName))
             {
-                var files = Directory.GetFiles(@"C:\Users\bumax_000\Downloads\JsonExamples", "*.json");
-
-                foreach (var jsonFile in files)
+                var counters = new List<PerformanceCounter>()
                 {
-                    Console.WriteLine(jsonFile);
-                    var jsonFileText = File.ReadAllText(jsonFile);
+                    byteInAllHeapsConter,
+                    processPrivateBytesCounter
+                };
+                var files = Directory.GetFiles(directory, "*.json3");
 
-                    Stopwatch sp;
-                    long simpleReadTime;
-                    //var results = JsonProcessorRunner(()=>)
-                    var before = SimpleJsonIteration(jsonFileText, out sp, out simpleReadTime);
-                    Console.WriteLine(
-                        $"Simple JSON Read Time:{simpleReadTime:#,#} mem: {GC.GetTotalMemory(false) - before:#,#} bytes");
-                    before = GC.GetTotalMemory(true);
-                    sp.Restart();
-
-                    JObject.Load(new JsonTextReader(new StringReader(jsonFileText)));
-                    var jobjectReadTime = sp.ElapsedMilliseconds;
-
-                    Console.WriteLine(
-                        $"Json Object Read Time:{jobjectReadTime} mem: {GC.GetTotalMemory(false) - before:#,#} bytes");
-
-                    before = GC.GetTotalMemory(true);
-
-                    sp.Restart();
-
-                    using (var unmanagedPool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
-                    using (var blittableContext = new BlittableContext(unmanagedPool))
-                    using (
-                        var employee = new BlittableJsonWriter(new JsonTextReader(new StringReader(jsonFileText)),
-                            blittableContext,
-                            "doc1"))
+                fs.WriteLine("Name,Size on Disk,Json Load Time,.NET Mem,Process Mem, Blit Load Time,.NET Mem,Process Mem,Json Size, Blit Size");
+                using (var unmanagedPool = new UnmanagedBuffersPool(string.Empty, 1024 * 1024 * 1024))
+                using (var blittableContext = new BlittableContext(unmanagedPool))
+                {
+                    foreach (var jsonFile in files)
                     {
-                        employee.Write();
-                        var blittableObjectReadTime = sp.ElapsedMilliseconds;
-
-                        Console.WriteLine($"Json Object Read Time:{blittableObjectReadTime} " +
-                                          $"mem: {GC.GetTotalMemory(false) - before:#,#} bytes unmanaged " +
-                                          $"{unmanagedPool.CurrentSize:#,#} bytes, size {employee.SizeInBytes:#,#}");
+                        fs.Write(Path.GetFileName(jsonFile) +",");
+                        var jsonFileText = File.ReadAllText(jsonFile);
+                        fs.Write(new FileInfo(jsonFile).Length +",");
+                        GC.Collect(2);
+                        var result = JsonProcessorRunner(() =>
+                            JObject.Load(new JsonTextReader(new StringReader(jsonFileText))), counters, 50);
+                        GC.Collect(2);
+                        fs.Write(result.Duration+",");
+                        foreach (var countersValue in result.CountersValues)
+                        {
+                            fs.Write(countersValue.Value.Max(x => x.RawValue) +",");
+                        }
+                        GC.Collect(2);
+                        result = JsonProcessorRunner(() =>
+                        {
+                            using (
+                                var employee =
+                                    new BlittableJsonWriter(new JsonTextReader(new StringReader(jsonFileText)),
+                                        blittableContext,
+                                        "doc1"))
+                            {
+                                employee.Write();
+                            }
+                        }, counters, 50);
+                        GC.Collect(2);
+                        fs.Write(result.Duration+",");
+                        Console.WriteLine(result.Duration);
+                        foreach (var countersValue in result.CountersValues)
+                        {
+                            Console.WriteLine(countersValue.Key);
+                            fs.Write(countersValue.Value.Average(x => x.RawValue) + ",");
+                        }
+                        var size =
+                            JObject.Load(new JsonTextReader(new StringReader(jsonFileText)))
+                                .ToString(Formatting.None)
+                                .Length;
+                        fs.Write(size+",");
+                        using (
+                                var employee =
+                                    new BlittableJsonWriter(new JsonTextReader(new StringReader(jsonFileText)),
+                                        blittableContext,
+                                        "doc1"))
+                        {
+                            employee.Write();
+                            fs.Write(employee.SizeInBytes+",");
+                        }
+                        fs.WriteLine();
                     }
                 }
             }
@@ -69,47 +92,41 @@ namespace NewBlittable.Tests.Benchmark
 
         public class OperationResults
         {
-            public Dictionary<string, List<CounterSample>> CountersValues;
+            public ConcurrentDictionary<string, List<CounterSample>> CountersValues;
+            public long Duration;
         }
 
-        //public OperationResults JsonProcessorRunner(Action processor, List<PerformanceCounter> counters)
-        //{
-        //    var results = new OperationResults
-        //    {
-        //        CountersValues = new Dictionary<string, List<CounterSample>>()
-        //    };
-        //    int signaled = 0;
-        //    foreach (var counter in counters)
-        //    {
-        //        results.CountersValues.Add($"{counter.CategoryName}\\{counter.CounterName}",new List<CounterSample>());
-        //    }
-
-        //    var jsonProcessorTask = Task.Run(processor).ContinueWith(x=>Interlocked.Exchange(ref signaled, 1));
-        //    var countersCollectorTask = Task.Run(() =>
-        //    {
-        //        while (Interlocked.CompareExchange(ref signaled,1,1)== 0)
-        //        {
-        //            foreach (var counter in counters)
-        //            {
-        //                results.CountersValues[$"{counter.CategoryName}\\{counter.CounterName}"].Add(counter.NextSample());
-        //            }
-        //            Thread.Sleep(30);
-        //        }
-        //    });
-        //    Task.WaitAll(new[] {jsonProcessorTask, countersCollectorTask});
-        //    return null;
-        //}
-        
-        private static long SimpleJsonIteration(string jsonFileText, out Stopwatch sp, out long simpleReadTime)
+        public static OperationResults JsonProcessorRunner(Action processor, List<PerformanceCounter> counters,
+            int resolutionInMiliseconds)
         {
-            var jsonStringReader = new JsonTextReader(new StringReader(jsonFileText));
-            var before = GC.GetTotalMemory(true);
-            sp = Stopwatch.StartNew();
-            while (jsonStringReader.Read())
+            var sp = Stopwatch.StartNew();
+            var results = new OperationResults
             {
+                CountersValues = new ConcurrentDictionary<string, List<CounterSample>>()
+            };
+            int signaled = 0;
+            foreach (var counter in counters)
+            {
+                results.CountersValues.TryAdd($"{counter.CategoryName}\\{counter.CounterName}",
+                    new List<CounterSample>());
+
             }
-            simpleReadTime = sp.ElapsedMilliseconds;
-            return before;
+            var jsonProcessorTask = Task.Run(processor).ContinueWith(x => Interlocked.Exchange(ref signaled, 1));
+            var countersCollectorTask = Task.Run(() =>
+            {
+                while (Interlocked.CompareExchange(ref signaled, 1, 1) == 0)
+                {
+                    Parallel.ForEach(counters, counter =>
+                    {
+                        results.CountersValues[$"{counter.CategoryName}\\{counter.CounterName}"].Add(
+                            counter.NextSample());
+                    });
+                    Thread.Sleep(resolutionInMiliseconds);
+                }
+            });
+            Task.WaitAll(new[] { jsonProcessorTask, countersCollectorTask });
+            results.Duration = sp.ElapsedMilliseconds;
+            return results;
         }
     }
 }

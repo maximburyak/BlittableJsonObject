@@ -86,7 +86,8 @@
     <Compile Include="BlittableJsonReaderArray.cs" />
     <Compile Include="BlittableJsonReaderObject.cs" />
     <Compile Include="BlittableJsonToken.cs" />
-    <Compile Include="BlittableJsonWriter.cs" />
+    <Compile Include="Tests\Benchmark\ProfilerWork.cs" />
+    <Compile Include="w.cs" />
     <Compile Include="BlittableJsonReaderBase.cs" />
     <Compile Include="DynamicBlittableJson.cs" />
     <Compile Include="LZ4.cs" />
